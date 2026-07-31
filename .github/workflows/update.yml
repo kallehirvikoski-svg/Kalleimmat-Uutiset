@@ -1,0 +1,38 @@
+name: Päivitä uutissivu
+
+on:
+  schedule:
+    # Ajetaan joka päivä klo 6:00 UTC (n. 8-9 Suomen aikaa vuodenajasta riippuen)
+    - cron: "0 6 * * *"
+  workflow_dispatch: # sallii myös manuaalisen ajon "Run workflow" -napista
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hae repo
+        uses: actions/checkout@v4
+
+      - name: Asenna Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Asenna riippuvuudet
+        run: pip install -r requirements.txt
+
+      - name: Generoi sivu
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/generate_site.py
+
+      - name: Commitoi ja pushaa muutokset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --staged --quiet || git commit -m "Päivitä uutiset $(date -u +'%Y-%m-%d %H:%M')"
+          git push
