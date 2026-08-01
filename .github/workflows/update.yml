@@ -26,7 +26,7 @@ jobs:
 
       - name: Generoi sivu
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_UUTISET }}
         run: python scripts/generate_site.py
 
       - name: Commitoi ja pushaa muutokset
