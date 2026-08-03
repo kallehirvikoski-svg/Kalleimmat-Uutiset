@@ -39,8 +39,9 @@ Valitse näistä 5 tärkeintä painottaen:
 - uusia malleja ja niiden käyttökelpoisia ominaisuuksia (ei pelkkää benchmark-hypeä)
 - automaatioon ja työkaluihin liittyviä uutisia (agentit, integraatiot, no-code/low-code)
 - pienten yritysten ja tuotannon AI-sovelluksia
-Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 3-4 lauseen yhteenveto, joka
-avaa uutisen taustaa ja merkitystä tarkemmin (ei vain toista otsikkoa).
+Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 3-4 lauseen selitys, joka avaa
+uutisen niin, että aiheeseen perehtymätönkin ymmärtää sen: selitä tarvittaessa tekniset
+termit ja tausta selkokielellä, älä oleta lukijan tietävän alan sanastoa etukäteen.
 
 Valitse lisäksi yksi konkreettinen AI-työkalun ominaisuus, prompting-tekniikka tai
 automaatio-käyttötapa, jota lukija ei todennäköisesti vielä tunne tai hyödynnä täysin.
@@ -52,8 +53,10 @@ Valitse näistä 5 tärkeintä painottaen:
 - ottelutuloksia ja niiden käännekohtia
 - siirtoja, sopimuksia ja offer sheet -tilanteita
 - loukkaantumisia ja kokoonpanomuutoksia
-Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 3-4 lauseen yhteenveto, joka
-avaa uutisen taustaa ja merkitystä tarkemmin (ei vain toista otsikkoa)."""
+Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 3-4 lauseen selitys, joka avaa
+uutisen niin, että lajia tuntemattomankin on helppo ymmärtää se: selitä tarvittaessa
+lyhyesti pelisäännöt, roolit tai käytännöt joihin uutinen viittaa, älä oleta lukijan
+tuntevan NHL:n termistöä tai käytäntöjä etukäteen."""
 
 
 def fetch_items(feeds, max_items=CANDIDATE_POOL):
