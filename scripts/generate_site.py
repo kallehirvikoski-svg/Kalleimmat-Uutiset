@@ -39,14 +39,21 @@ Valitse näistä 5 tärkeintä painottaen:
 - uusia malleja ja niiden käyttökelpoisia ominaisuuksia (ei pelkkää benchmark-hypeä)
 - automaatioon ja työkaluihin liittyviä uutisia (agentit, integraatiot, no-code/low-code)
 - pienten yritysten ja tuotannon AI-sovelluksia
-Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 1-2 lauseen yhteenveto."""
+Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 3-4 lauseen yhteenveto, joka
+avaa uutisen taustaa ja merkitystä tarkemmin (ei vain toista otsikkoa).
+
+Valitse lisäksi yksi konkreettinen AI-työkalun ominaisuus, prompting-tekniikka tai
+automaatio-käyttötapa, jota lukija ei todennäköisesti vielä tunne tai hyödynnä täysin.
+Selitä se 5-6 lauseessa ja anna yksi käytännön esimerkki miten sitä voisi soveltaa
+pienyrityksen automaatiossa, data-analytiikassa tai tuotannon johtamisessa."""
 
 NHL_INSTRUCTIONS = """Sinulle annetaan lista tuoreita NHL-uutisia (otsikko, kuvaus, lähde, linkki).
 Valitse näistä 5 tärkeintä painottaen:
 - ottelutuloksia ja niiden käännekohtia
 - siirtoja, sopimuksia ja offer sheet -tilanteita
 - loukkaantumisia ja kokoonpanomuutoksia
-Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 1-2 lauseen yhteenveto."""
+Kirjoita jokaiselle valitsemallesi uutiselle suomenkielinen 3-4 lauseen yhteenveto, joka
+avaa uutisen taustaa ja merkitystä tarkemmin (ei vain toista otsikkoa)."""
 
 
 def fetch_items(feeds, max_items=CANDIDATE_POOL):
@@ -77,14 +84,15 @@ def fetch_items(feeds, max_items=CANDIDATE_POOL):
     return entries[:max_items]
 
 
-def summarize_with_claude(instructions, raw_items):
-    """Pyytää Claudelta valinnan + suomenkieliset yhteenvedot. Palauttaa listan
-    valmiiksi muotoiltuja uutisia, tai None jos API-kutsu epäonnistuu."""
+def summarize_with_claude(instructions, raw_items, include_opetus=False):
+    """Pyytää Claudelta valinnan + suomenkieliset yhteenvedot, ja valinnaisesti
+    yhden opetuspätkän. Palauttaa (items, opetus)-parin, tai (None, None) jos
+    API-kutsu epäonnistuu."""
     if not ANTHROPIC_API_KEY:
         print("ANTHROPIC_API_KEY puuttuu, käytetään raakoja otsikoita.")
-        return None
+        return None, None
     if not raw_items:
-        return []
+        return [], None
 
     candidate_text = "\n\n".join(
         f"Otsikko: {item['title']}\n"
@@ -94,6 +102,14 @@ def summarize_with_claude(instructions, raw_items):
         for item in raw_items
     )
 
+    if include_opetus:
+        schema_hint = (
+            '{"items": [{"title": "...", "summary": "...", "source": "...", "link": "..."}], '
+            '"opetus": {"title": "...", "explanation": "..."}}'
+        )
+    else:
+        schema_hint = '{"items": [{"title": "...", "summary": "...", "source": "...", "link": "..."}]}'
+
     prompt = f"""{instructions}
 
 Uutiskandidaatit:
@@ -101,7 +117,7 @@ Uutiskandidaatit:
 
 Vastaa VAIN JSON-muodossa, ilman selityksiä, preamblea tai koodilohkomerkintöjä,
 täsmälleen tässä muodossa:
-{{"items": [{{"title": "...", "summary": "...", "source": "...", "link": "..."}}]}}"""
+{schema_hint}"""
 
     try:
         response = requests.post(
@@ -113,7 +129,7 @@ täsmälleen tässä muodossa:
             },
             json={
                 "model": ANTHROPIC_MODEL,
-                "max_tokens": 1200,
+                "max_tokens": 2000 if include_opetus else 1600,
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=60,
@@ -122,17 +138,19 @@ täsmälleen tässä muodossa:
         text = response.json()["content"][0]["text"].strip()
         text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         parsed = json.loads(text)
-        return parsed.get("items", [])[:MAX_ITEMS]
+        items = parsed.get("items", [])[:MAX_ITEMS]
+        opetus = parsed.get("opetus") if include_opetus else None
+        return items, opetus
     except Exception as e:
         print(f"Claude-kutsu epäonnistui, käytetään raakoja otsikoita: {e}")
-        return None
+        return None, None
 
 
-def get_section_items(feeds, instructions):
+def get_section_items(feeds, instructions, include_opetus=False):
     raw_items = fetch_items(feeds)
-    summarized = summarize_with_claude(instructions, raw_items)
+    summarized, opetus = summarize_with_claude(instructions, raw_items, include_opetus)
     if summarized is not None:
-        return summarized
+        return summarized, opetus
 
     # Varasuunnitelma: raa'at otsikot ilman yhteenvetoa, jos API ei ole käytössä.
     fallback = []
@@ -145,7 +163,7 @@ def get_section_items(feeds, instructions):
                 "link": item["link"],
             }
         )
-    return fallback
+    return fallback, None
 
 
 def render_section(title, items):
@@ -174,9 +192,20 @@ def render_section(title, items):
     </section>"""
 
 
+def render_opetus(opetus):
+    if not opetus or not opetus.get("title"):
+        return ""
+    return f"""
+    <div class="opetus">
+      <div class="opetus-label">💡 Päivän opetuspätkä</div>
+      <div class="opetus-title">{html.escape(opetus['title'])}</div>
+      <div class="opetus-text">{html.escape(opetus.get('explanation', ''))}</div>
+    </div>"""
+
+
 def main():
-    ai_items = get_section_items(AI_FEEDS, AI_INSTRUCTIONS)
-    nhl_items = get_section_items(NHL_FEEDS, NHL_INSTRUCTIONS)
+    ai_items, opetus = get_section_items(AI_FEEDS, AI_INSTRUCTIONS, include_opetus=True)
+    nhl_items, _ = get_section_items(NHL_FEEDS, NHL_INSTRUCTIONS)
     updated = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M UTC")
 
     page = f"""<!DOCTYPE html>
@@ -199,12 +228,19 @@ def main():
   .meta {{ font-size: 0.8rem; color: #999; margin-top: 4px; }}
   section {{ margin-bottom: 40px; }}
   .empty {{ color: #999; font-style: italic; }}
+  .opetus {{ background: #fff7e6; border: 1px solid #f0dca0; border-radius: 8px;
+            padding: 16px; margin-bottom: 32px; }}
+  .opetus-label {{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em;
+                   color: #a67c00; font-weight: 600; margin-bottom: 6px; }}
+  .opetus-title {{ font-weight: 600; margin-bottom: 6px; }}
+  .opetus-text {{ font-size: 0.9rem; color: #444; line-height: 1.5; }}
 </style>
 </head>
 <body>
   <h1>Päivän uutiset</h1>
   <div class="updated">Päivitetty: {updated}</div>
   {render_section("🤖 AI-uutiset", ai_items)}
+  {render_opetus(opetus)}
   {render_section("🏒 NHL-uutiset", nhl_items)}
 </body>
 </html>"""
